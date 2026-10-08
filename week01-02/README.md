@@ -10,7 +10,7 @@ October 7, 2026 - October 21, 2026
 
 ## Tickets
 
-- [ ] PULSE-1: Repository setup
+- [x] PULSE-1: Repository setup
 - [ ] PULSE-2: Backend API
 - [ ] PULSE-3: PostgreSQL
 - [ ] PULSE-4: Frontend
