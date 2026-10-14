@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 app = FastAPI()
 
-# Types
+# Types/Contracts/Models
 class Status(StrEnum):
     operational = "operational"
     degraded = "degraded"
