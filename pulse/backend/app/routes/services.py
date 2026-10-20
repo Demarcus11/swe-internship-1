@@ -1,8 +1,10 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, HTTPException
+from app.models import Service, ServicePublic, ServiceCreate, ServiceUpdate, Status
 from datetime import datetime, timezone
-from backend.models import Service, ServicePublic, ServiceCreate, ServiceUpdate, Status
 
-app = FastAPI()
+router = APIRouter(prefix="/api/services", tags=["services"])
+
+# TODO: update endpoint function logic with DB functions to phase out in-memory services array
 
 # Data
 services = [
@@ -18,18 +20,18 @@ services = [
 ]
 
 # Endpoints
-@app.get("/api/services", response_model=list[ServicePublic])
+@router.get("/", response_model=list[ServicePublic])
 async def get_services():
     return services
 
-@app.get("/api/services/{service_id}", response_model=ServicePublic)
+@router.get("/{service_id}", response_model=ServicePublic)
 async def get_service(service_id: int):
     for s in services:
         if s.id == service_id:
             return s
     raise HTTPException(status_code=404, detail="Service not found")
        
-@app.post("/api/services", response_model=ServicePublic, status_code=201)
+@router.post("/", response_model=ServicePublic, status_code=201)
 async def create_service(new_service: ServiceCreate):
     now = datetime.now(timezone.utc)
     service = Service(
@@ -41,7 +43,7 @@ async def create_service(new_service: ServiceCreate):
     services.append(service)
     return service
 
-@app.patch("/api/services/{service_id}", response_model=ServicePublic)
+@router.patch("/{service_id}", response_model=ServicePublic)
 async def update_service(service_id: int, updated_service: ServiceUpdate):
     # Copy exisiting Service instance and overwrite only fields the client updated
     for index, s in enumerate(services):
@@ -56,7 +58,7 @@ async def update_service(service_id: int, updated_service: ServiceUpdate):
             return service
     raise HTTPException(status_code=404, detail="Service not found")
 
-@app.delete("/api/services/{service_id}", status_code=204)
+@router.delete("/{service_id}", status_code=204)
 async def delete_service(service_id: int):
     for index, s in enumerate(services):
         if s.id == service_id:

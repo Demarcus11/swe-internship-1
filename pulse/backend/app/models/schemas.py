@@ -1,6 +1,12 @@
 from sqlmodel import SQLModel
 from datetime import datetime
-from .base import Status
+from enum import StrEnum
+
+class Status(StrEnum):
+    operational = "operational"
+    degraded = "degraded"
+    outage = "outage"
+    maintenance = "maintenance"
 
 # Properties shared across Service variants
 class ServiceBase(SQLModel):
