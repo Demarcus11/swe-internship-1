@@ -1,38 +1,8 @@
 from fastapi import FastAPI, HTTPException
-from enum import StrEnum
-from pydantic import BaseModel
 from datetime import datetime, timezone
-
+from backend.models import Service, ServicePublic, ServiceCreate, ServiceUpdate, Status
 
 app = FastAPI()
-
-# Types/Contracts/Models
-class Status(StrEnum):
-    operational = "operational"
-    degraded = "degraded"
-    outage = "outage"
-    maintenance = "maintenance"
-
-class Service(BaseModel):
-    id: int
-    name: str
-    description: str
-    owner: str
-    status: Status
-    created_at: datetime
-    updated_at: datetime
-
-class ServiceClientCreate(BaseModel):
-    name: str
-    description: str
-    owner: str
-    status: Status
-
-class ServiceClientUpdate(BaseModel):
-    name: str | None = None
-    description: str | None = None
-    owner: str | None = None
-    status: Status | None = None
 
 # Data
 services = [
@@ -48,22 +18,22 @@ services = [
 ]
 
 # Endpoints
-@app.get("/api/services")
-async def get_services() -> list[Service]:
+@app.get("/api/services", response_model=list[ServicePublic])
+async def get_services():
     return services
 
-@app.get("/api/services/{service_id}")
-async def get_service(service_id: int) -> Service:
+@app.get("/api/services/{service_id}", response_model=ServicePublic)
+async def get_service(service_id: int):
     for s in services:
         if s.id == service_id:
             return s
     raise HTTPException(status_code=404, detail="Service not found")
        
-@app.post("/api/services", status_code=201)
-async def create_service(new_service: ServiceClientCreate) -> Service:
+@app.post("/api/services", response_model=ServicePublic, status_code=201)
+async def create_service(new_service: ServiceCreate):
     now = datetime.now(timezone.utc)
     service = Service(
-        id=max((s.id for s in services), default=0) + 1,
+        id=max((s.id for s in services if s.id is not None), default=0) + 1,
         **new_service.model_dump(),
         created_at=now,
         updated_at=now
@@ -71,8 +41,8 @@ async def create_service(new_service: ServiceClientCreate) -> Service:
     services.append(service)
     return service
 
-@app.patch("/api/services/{service_id}")
-async def update_service(service_id: int, updated_service: ServiceClientUpdate) -> Service:
+@app.patch("/api/services/{service_id}", response_model=ServicePublic)
+async def update_service(service_id: int, updated_service: ServiceUpdate):
     # Copy exisiting Service instance and overwrite only fields the client updated
     for index, s in enumerate(services):
         if s.id == service_id:
