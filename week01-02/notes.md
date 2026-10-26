@@ -1,5 +1,129 @@
 # Engineering Notes
 
+# 10/20/2026
+
+- Project structure:
+  - removed base.py since I only had the Status enum in there currently. Added Stats enum declaration inside schemas.py.
+  - created backend/routes/services.py to put endpoints inside and removed them from backend/main.py.
+
+- FastAPI APIRouter:
+  - APIRouter allows for better organization of endpoint resources. Currently, we only have one resource, services, but if we had more resources such as users, services, etc then the benefits of APIRouter would be more visible, but we still get some benefits with one resource. First benefit is, we don't have to use the full endpoint path in our endpoints. The tag allows the /docs to group the endpoints into a section so all services endpoints will appear under the services section:
+
+  ```python
+  # services.py
+
+  router = APIRouter(prefix="/api/services", tags=["services"])
+
+  @router.get("/", response_model=list[ServicePublic])
+  async def get_services():
+      return services
+
+  # main.py
+  from fastapi import FastAPI
+  from app.routes import services
+
+  app = FastAPI()
+  app.include_router(services.router)
+  ```
+
+- File paths in python:
+  - Instead of making pulse/ the root, which would force us to type `from pulse.backend.app.main import app` we flag the app/ folder as our code package by putting an empty `__init__.py file` inside of it. Now, as long as our terminal is open in the backend/ folder, we can just type `from app.main import app`
+
+  - Inside the models/ directory, we use another `__init__.py` to bundle our files and make importing easier. Rather than having to reach deep into sub-files and write `from app.models.schemas import ServiceBase`, we can simply pull it straight from the folder models directory `from app.models import ServiceBase`
+
+- Database explained:
+  - A database is a program that stores data in files on some computer's disk. The program (Postgres) sits and waits for requests such as "save this row", "give me all services" and reads and writes to files in response. Which computer Postgres is running on determines which computer's disk the files are stored on:
+    - Locally: using Docker which runs Postgres on your computer so the DB files are stored on your computer's disk. Pros is, its free, cons is is your computer turns off then the DB turns off so any deployed apps using data from the database won't load, and if your disk breaks then all DB data is lost.
+
+    - Cloud: using a cloud service such as Neon which runs Postgres on Neon's servers which stores the DB files on their computer's disks. Pros, DB data has 24/7 uptime because its determined by the cloud service servers not your computer being on so deployed apps will always have access to DB data, data is protected because cloud services usually store the data in more than one place so if a drive dies all Db data isnt lost, cons is it can cost money, but for small practice projects most cloud services have a free tier.
+
+- Postgres setup & Sqlmodel intergration
+  1. Install postgres driver and a .env loader from pulse/backend run: "uv add "psycopg[binary]" python-dotenv"
+  2. Start a Postgres server: We are going the cloud way with Neon. Create new Neon project and get DATABASE_URL connection string. Change the beginning to "postgresql+psycopg://" so SQLAlchemy uses the installed driver.
+  3. Add it to a .env file inside backend/
+  4. Inside database.py paste:
+
+  ```python
+  import os
+
+  from dotenv import load_dotenv
+  from sqlmodel import create_engine
+
+  load_dotenv() # makes .env variable available
+
+  DATABASE_URL = os.environ["DATABASE_URL"]
+
+  engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+  ```
+
+- Updating endpoint functions with DB functions
+
+  ```python
+  @router.post("/", response_model=ServicePublic, status_code=201)
+  async def create_service(new_service: ServiceCreate, session: SessionDep):
+      service = Service(**new_service.model_dump())
+      session.add(service)
+      session.commit()
+      session.refresh(service)
+      return service
+  ```
+
+  1.  FastAPI validates the client's JSON body against the ServiceCreate schema.
+  2.  `service = Service(**new_service.model_dump())` dumps the client's JSON body into a Service object. It will look like this:
+
+           ```JSON
+            Service(
+              id=None, <-- set as default in Service table
+              name="Web Hosting",
+              description="Static and dynamic site hosting",
+              owner="platform-team",
+              status=<Status.operational: "operational">,
+              created_at=datetime.datetime( <-- set as default in Service table
+                  2026, 10, 20, 20, 54, 0,
+                  tzinfo=datetime.timezone.utc
+              ),
+              updated_at=datetime.datetime( <-- set as default in Service table
+                  2026, 10, 20, 20, 54, 0,
+                  tzinfo=datetime.timezone.utc
+              )
+            ```
+
+  3.  Stage changes to DB session
+
+      ```python
+      session.add(service)
+      ```
+
+  4.  Commit transaction (saves new record to DB)
+
+      ```python
+      session.commit()
+      ```
+
+  5.  Refresh the object (reloads the object from the database, allowing it to reflect DB-generated values such as the primary key when the object is returned to the client)
+
+      ```python
+      session.refresh(service)
+      ```
+
+  6.  The returned service object will be stripped to match ServicePublic (response_model=ServicePublic)
+
+      ```python
+      @router.post("/", response_model=ServicePublic, status_code=201)
+      ```
+
+- To start server, from inside pulse/backend: `uv run uvicorn app.main:app --reload`, this will also start up the DB because we have the line:
+
+  ```python
+  # Runs once when the server starts (checks if the DB already exists first)
+  @asynccontextmanager
+  async def lifespan(app: FastAPI):
+      create_db_and_tables()
+      yield
+  ```
+
+- To test API CRUD operations: `http://127.0.0.1:8000/docs`
+
 ## 10/19/2026
 
 - New project structure:
