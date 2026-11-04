@@ -8,9 +8,9 @@ from .models import tables  # registers table models with SQLModel.metadata
 
 load_dotenv()
 
-DATABASE_URL = os.environ["DATABASE_URL"]
+DEV_DATABASE_URL = os.environ["DEV_DATABASE_URL"]
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+engine = create_engine(DEV_DATABASE_URL, pool_pre_ping=True)
 
 # Create tables from tables inside models.tables.py
 def create_db_and_tables(): 
